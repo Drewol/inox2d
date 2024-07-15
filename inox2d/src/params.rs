@@ -82,11 +82,14 @@ impl Param {
 			let y_temp = self.axis_points.y.binary_search_by(|a| a.total_cmp(&val_normed.y));
 
 			match y_temp {
-				Ok(ind) if ind == self.axis_points.y.len() - 1 => (ind - 1, ind),
+				Ok(ind) if ind == self.axis_points.y.len() - 1 => (ind.saturating_sub(1), ind),
 				Ok(ind) => (ind, ind + 1),
 				Err(ind) => (ind - 1, ind),
 			}
 		};
+
+		let x_maxdex = x_maxdex.min(self.axis_points.x.len() - 1);
+		let y_maxdex = y_maxdex.min(self.axis_points.y.len() - 1);
 
 		// Apply offset on each binding
 		for binding in &self.bindings {
