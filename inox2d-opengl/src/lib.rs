@@ -5,6 +5,7 @@ pub mod texture;
 
 use std::cell::RefCell;
 use std::mem;
+use std::num::NonZeroU32;
 use std::ops::Deref;
 
 use gl_buffer::RenderCtxOpenglExt;
@@ -115,6 +116,7 @@ pub struct OpenglRenderer {
 	support_debug_extension: bool,
 	pub camera: Camera,
 	pub viewport: UVec2,
+	target: RefCell<Option<glow::NativeFramebuffer>>,
 	cache: RefCell<GlCache>,
 
 	vao: glow::VertexArray,
@@ -182,6 +184,7 @@ impl OpenglRenderer {
 			composite_shader,
 			composite_mask_shader,
 
+			target: RefCell::new(None),
 			textures: Vec::new(),
 		};
 
@@ -352,7 +355,7 @@ impl OpenglRenderer {
 			0,
 		);
 
-		gl.bind_framebuffer(glow::FRAMEBUFFER, None);
+		gl.bind_framebuffer(glow::FRAMEBUFFER, *self.target.borrow());
 	}
 }
 
@@ -420,6 +423,15 @@ impl InoxRenderer for OpenglRenderer {
 	fn render(&self, puppet: &Puppet) {
 		let gl = &self.gl;
 		unsafe {
+			let mut target = self.target.borrow_mut();
+			let target_buffer = gl.get_parameter_i32(glow::DRAW_FRAMEBUFFER_BINDING);
+			if target_buffer == 0 {
+				*target = None;
+			} else {
+				*target = Some(glow::NativeFramebuffer(NonZeroU32::new(target_buffer as u32).unwrap()));
+			}
+			drop(target);
+
 			puppet.render_ctx.upload_deforms_to_gl(gl);
 			gl.enable(glow::BLEND);
 			gl.disable(glow::DEPTH_TEST);
@@ -577,7 +589,7 @@ impl InoxRenderer for OpenglRenderer {
 
 		self.clear_texture_cache();
 		unsafe {
-			gl.bind_framebuffer(glow::FRAMEBUFFER, None);
+			gl.bind_framebuffer(glow::FRAMEBUFFER, *self.target.borrow());
 		}
 
 		let comp = &composite.draw_state;
