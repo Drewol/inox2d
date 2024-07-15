@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::{error::Error, fs};
 
 use inox2d::formats::inp::parse_inp;
@@ -81,7 +82,7 @@ impl Inox2dOpenglExampleApp {
 
 impl App for Inox2dOpenglExampleApp {
 	fn resume_window(&mut self, gl: glow::Context) {
-		match OpenglRenderer::new(gl) {
+		match OpenglRenderer::new(Arc::new(gl)) {
 			Ok(mut renderer) => {
 				tracing::info!("Initializing Inox2D renderer");
 				renderer.prepare(&self.model).unwrap();

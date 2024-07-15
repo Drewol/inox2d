@@ -7,6 +7,7 @@ use std::cell::RefCell;
 use std::mem;
 use std::num::NonZeroU32;
 use std::ops::Deref;
+use std::sync::Arc;
 
 use gl_buffer::RenderCtxOpenglExt;
 use glam::{uvec2, Mat4, UVec2, Vec2, Vec3};
@@ -112,7 +113,7 @@ impl GlCache {
 
 #[allow(unused)]
 pub struct OpenglRenderer {
-	gl: glow::Context,
+	gl: Arc<glow::Context>,
 	support_debug_extension: bool,
 	pub camera: Camera,
 	pub viewport: UVec2,
@@ -138,7 +139,7 @@ pub struct OpenglRenderer {
 // TODO: remove the #[allow(unused)]
 #[allow(unused)]
 impl OpenglRenderer {
-	pub fn new(gl: glow::Context) -> Result<Self, OpenglRendererError> {
+	pub fn new(gl: Arc<glow::Context>) -> Result<Self, OpenglRendererError> {
 		let vao = unsafe { gl.create_vertex_array().map_err(OpenglRendererError::Opengl)? };
 
 		// Initialize framebuffers
@@ -155,6 +156,8 @@ impl OpenglRenderer {
 
 			composite_framebuffer = gl.create_framebuffer().map_err(OpenglRendererError::Opengl)?;
 		}
+
+		dbg!((cf_albedo, cf_emissive, cf_bump, cf_stencil));
 
 		// Shaders
 		let part_shader = PartShader::new(&gl)?;
@@ -435,6 +438,8 @@ impl InoxRenderer for OpenglRenderer {
 			puppet.render_ctx.upload_deforms_to_gl(gl);
 			gl.enable(glow::BLEND);
 			gl.disable(glow::DEPTH_TEST);
+
+			gl.clear(glow::COLOR_BUFFER_BIT | glow::STENCIL_BUFFER_BIT | glow::STENCIL_BUFFER_BIT);
 		}
 
 		let camera = self
