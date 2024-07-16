@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 use gl_buffer::RenderCtxOpenglExt;
 use glam::{uvec2, Mat4, UVec2, Vec2, Vec3};
-use glow::HasContext;
+use glow::{HasContext, NativeBuffer};
 use inox2d::texture::{decode_model_textures, TextureId};
 
 use inox2d::math::camera::Camera;
@@ -132,6 +132,7 @@ pub struct OpenglRenderer {
 	part_mask_shader: PartMaskShader,
 	composite_shader: CompositeShader,
 	composite_mask_shader: CompositeMaskShader,
+	deform_buffer: NativeBuffer,
 
 	textures: Vec<Texture>,
 }
@@ -189,6 +190,7 @@ impl OpenglRenderer {
 
 			target: RefCell::new(None),
 			textures: Vec::new(),
+			deform_buffer: NativeBuffer(NonZeroU32::MIN),
 		};
 
 		// Set emission strength once (it doesn't change anywhere else)
@@ -366,7 +368,8 @@ impl InoxRenderer for OpenglRenderer {
 	type Error = OpenglRendererError;
 
 	fn prepare(&mut self, model: &Model) -> Result<(), Self::Error> {
-		unsafe { model.puppet.render_ctx.setup_gl_buffers(&self.gl, self.vao)? };
+		let (_, deform_buffer) = unsafe { model.puppet.render_ctx.setup_gl_buffers(&self.gl, self.vao)? };
+		self.deform_buffer = deform_buffer;
 
 		match self.upload_model_textures(&model.textures) {
 			Ok(_) => Ok(()),
@@ -434,8 +437,9 @@ impl InoxRenderer for OpenglRenderer {
 				*target = Some(glow::NativeFramebuffer(NonZeroU32::new(target_buffer as u32).unwrap()));
 			}
 			drop(target);
+			gl.bind_vertex_array(Some(self.vao));
 
-			puppet.render_ctx.upload_deforms_to_gl(gl);
+			puppet.render_ctx.upload_deforms_to_gl(gl, self.deform_buffer);
 			gl.enable(glow::BLEND);
 			gl.disable(glow::DEPTH_TEST);
 
